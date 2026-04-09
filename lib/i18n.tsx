@@ -106,6 +106,21 @@ export type Dict = {
     final: { title: string; body: string; cta: string };
     error: { title: string; cta: string; generic: string };
     findings: Record<number, FindingDict>;
+    checks: Record<string, FindingDict>;
+    metaLabels: {
+      ip: string;
+      server: string;
+      tls: string;
+      cert: string;
+      certExpires: string;
+      certDaysLeft: string;
+      responseTime: string;
+      statusCode: string;
+      technologies: string;
+      redirectChain: string;
+      scanDuration: string;
+      downloadPdf: string;
+    };
   };
   paywall: {
     kicker: string;
@@ -120,6 +135,16 @@ export type Dict = {
     ctaLoading: string;
     fineprint: string;
     close: string;
+  };
+  comingSoon: {
+    kicker: string;
+    title: string;
+    subtitle: string;
+    emailPlaceholder: string;
+    ctaLabel: string;
+    successLabel: string;
+    badgeLabel: string;
+    features: { tag: string; title: string; body: string }[];
   };
 };
 
@@ -469,6 +494,183 @@ const EN: Dict = {
           "Add rate limiting (per IP + per account). Lock accounts after N failures. Add CAPTCHA on anomaly.",
       },
     },
+    checks: {
+      "http-no-redirect": {
+        category: "Transport Security",
+        title: "HTTP does not redirect to HTTPS",
+        summary: "Requests over plain HTTP are served without redirecting to a secure connection.",
+        impact: "All traffic can be intercepted — sessions stolen, pages modified, credentials captured in transit.",
+        fix: "Configure your server or CDN to 301-redirect all HTTP traffic to HTTPS.",
+      },
+      "cert-invalid": {
+        category: "Transport Security",
+        title: "TLS certificate is invalid or untrusted",
+        summary: "The certificate presented by the server is self-signed, expired, or otherwise untrusted.",
+        impact: "Browsers show a scary warning; users may leave or attackers can MITM the connection.",
+        fix: "Obtain a valid certificate from a trusted CA (e.g. Let's Encrypt). Ensure it covers your hostname.",
+      },
+      "cert-expiring": {
+        category: "Transport Security",
+        title: "TLS certificate expiring soon",
+        summary: "Your certificate expires within 30 days.",
+        impact: "If it lapses, your site goes down or shows security warnings.",
+        fix: "Renew the certificate now. Set up auto-renewal via your CA or hosting platform.",
+      },
+      "no-hsts": {
+        category: "Security Headers",
+        title: "Missing Strict-Transport-Security (HSTS)",
+        summary: "Without HSTS, browsers will still accept a downgraded HTTP connection on first visit.",
+        impact: "First-visit MITM attacks can strip HTTPS before your browser ever sees the certificate.",
+        fix: "Add Strict-Transport-Security: max-age=31536000; includeSubDomains; preload.",
+      },
+      "hsts-short": {
+        category: "Security Headers",
+        title: "HSTS max-age too short",
+        summary: "The HSTS header has a max-age under 6 months.",
+        impact: "Browsers forget the HSTS policy quickly, leaving a window for downgrade attacks.",
+        fix: "Set max-age to at least 31536000 (1 year).",
+      },
+      "no-csp": {
+        category: "Security Headers",
+        title: "Missing Content-Security-Policy",
+        summary: "No CSP header detected — your biggest defense against XSS is turned off.",
+        impact: "Any XSS bug becomes a full account-takeover surface. Stolen sessions, leaked tokens, defacement.",
+        fix: "Add Content-Security-Policy: default-src 'self'; and tighten per directive as needed.",
+      },
+      "no-x-frame-options": {
+        category: "Security Headers",
+        title: "Missing X-Frame-Options / frame-ancestors",
+        summary: "Your pages can be embedded in iframes on any site — clickjacking is possible.",
+        impact: "Attackers trick logged-in users into clicking hidden UI (transfer, delete, approve).",
+        fix: "Return X-Frame-Options: DENY or add frame-ancestors 'none' to your CSP.",
+      },
+      "no-x-content-type-options": {
+        category: "Security Headers",
+        title: "Missing X-Content-Type-Options",
+        summary: "Without nosniff, browsers may MIME-sniff responses and execute unexpected content.",
+        impact: "A file uploaded as text could be interpreted as JavaScript.",
+        fix: "Add X-Content-Type-Options: nosniff to all responses.",
+      },
+      "no-referrer-policy": {
+        category: "Security Headers",
+        title: "Missing Referrer-Policy",
+        summary: "Full referrer URLs may leak sensitive paths and tokens to third parties.",
+        impact: "URLs with session tokens or internal paths are sent in the Referer header to external sites.",
+        fix: "Add Referrer-Policy: strict-origin-when-cross-origin (or stricter).",
+      },
+      "no-permissions-policy": {
+        category: "Security Headers",
+        title: "Missing Permissions-Policy",
+        summary: "Browser features like camera, microphone, and geolocation are not explicitly restricted.",
+        impact: "Injected scripts could access powerful browser APIs.",
+        fix: "Add Permissions-Policy: camera=(), microphone=(), geolocation=() etc.",
+      },
+      "server-banner": {
+        category: "Server Configuration",
+        title: "Server header reveals version info",
+        summary: "The Server header advertises exact software and version numbers.",
+        impact: "Attackers know exactly which exploits to try against your stack.",
+        fix: "Strip or generalize the Server header at your reverse proxy or CDN.",
+      },
+      "x-powered-by": {
+        category: "Server Configuration",
+        title: "X-Powered-By header exposed",
+        summary: "The response includes an X-Powered-By header revealing your framework.",
+        impact: "Gives attackers a shortcut to identify known vulnerabilities in your stack.",
+        fix: "Remove the X-Powered-By header. Most frameworks have a simple config toggle.",
+      },
+      "cookies-insecure": {
+        category: "Cookie Security",
+        title: "Cookies missing security flags",
+        summary: "One or more cookies are missing Secure, HttpOnly, or SameSite attributes.",
+        impact: "Enables cookie theft via XSS and CSRF via cross-site navigation.",
+        fix: "Set Secure; HttpOnly; SameSite=Lax (or Strict) on all authentication cookies.",
+      },
+      "cors-wildcard": {
+        category: "CORS Policy",
+        title: "Overly permissive CORS configuration",
+        summary: "Your API reflects any origin or uses Access-Control-Allow-Origin: *.",
+        impact: "Malicious sites can make authenticated requests on behalf of your users.",
+        fix: "Lock CORS to an explicit allowlist. Never combine wildcard with credentials.",
+      },
+      "env-exposed": {
+        category: "Exposed Files",
+        title: "Exposed .env file on public path",
+        summary: "The /.env path returns a 200 response — secrets may be publicly readable.",
+        impact: "API keys, database credentials, Stripe secrets — everything in your .env is now public.",
+        fix: "Block dotfile access at your web server. Rotate ALL exposed secrets immediately.",
+      },
+      "git-exposed": {
+        category: "Exposed Files",
+        title: "Exposed .git directory",
+        summary: "The /.git/HEAD path is accessible — your full source code history may be downloadable.",
+        impact: "Attackers can reconstruct your entire codebase, find secrets in commit history.",
+        fix: "Block /.git/ access at your web server. Review git history for leaked secrets.",
+      },
+      "ds-store-exposed": {
+        category: "Exposed Files",
+        title: "Exposed .DS_Store file",
+        summary: "A macOS .DS_Store file is accessible, leaking directory structure.",
+        impact: "Reveals internal file and folder names, helping attackers map your site.",
+        fix: "Block dotfile access at your web server. Add .DS_Store to .gitignore.",
+      },
+      "admin-exposed": {
+        category: "Exposed Files",
+        title: "Admin panel publicly accessible",
+        summary: "An admin or login page is reachable without IP restriction.",
+        impact: "Automated bots bruteforce these 24/7. Weak password = full takeover.",
+        fix: "Put admin behind SSO, IP allowlist, or VPN. Enforce MFA and rate-limiting.",
+      },
+      "debug-exposed": {
+        category: "Exposed Files",
+        title: "Debug or status endpoint exposed",
+        summary: "A debug, phpinfo, or server-status page is publicly accessible.",
+        impact: "Reveals internal config, PHP settings, server internals — a goldmine for attackers.",
+        fix: "Remove or restrict access to debug endpoints in production.",
+      },
+      "no-spf": {
+        category: "DNS Security",
+        title: "No SPF record",
+        summary: "No SPF TXT record found — anyone can send email pretending to be your domain.",
+        impact: "Phishing emails from your domain will pass basic checks, damaging your reputation.",
+        fix: "Add a TXT record: v=spf1 include:_spf.yourprovider.com -all",
+      },
+      "no-dmarc": {
+        category: "DNS Security",
+        title: "No DMARC record",
+        summary: "No DMARC policy found at _dmarc.yourdomain — email authentication is incomplete.",
+        impact: "Without DMARC, you have no visibility into who's spoofing your domain.",
+        fix: "Add a TXT record at _dmarc.yourdomain: v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain",
+      },
+      "mixed-content": {
+        category: "Content Security",
+        title: "Mixed content: HTTP resources on HTTPS page",
+        summary: "Your HTTPS page loads resources over plain HTTP.",
+        impact: "Those resources can be tampered with in transit, potentially injecting scripts.",
+        fix: "Change all resource URLs to HTTPS. Use protocol-relative URLs or CSP upgrade-insecure-requests.",
+      },
+      "outdated-library": {
+        category: "Content Security",
+        title: "Outdated JavaScript library detected",
+        summary: "A known-vulnerable version of a JavaScript library was found.",
+        impact: "Public exploits exist for this version — XSS, prototype pollution, or worse.",
+        fix: "Upgrade to the latest version. Run npm audit in CI to catch future regressions.",
+      },
+    },
+    metaLabels: {
+      ip: "IP Address",
+      server: "Server",
+      tls: "TLS Protocol",
+      cert: "Certificate",
+      certExpires: "Cert expires",
+      certDaysLeft: "Days left",
+      responseTime: "Response time",
+      statusCode: "Status code",
+      technologies: "Technologies",
+      redirectChain: "Redirects",
+      scanDuration: "Scan duration",
+      downloadPdf: "Download PDF",
+    },
   },
   paywall: {
     kicker: "Unlock",
@@ -492,6 +694,48 @@ const EN: Dict = {
     ctaLoading: "Redirecting…",
     fineprint: "Secure checkout · Instant access · 7-day money-back guarantee",
     close: "Close",
+  },
+  comingSoon: {
+    kicker: "Coming soon",
+    title: "We're just getting started.",
+    subtitle:
+      "These features are being built right now. Leave your email and be the first to know when they launch.",
+    emailPlaceholder: "you@company.com",
+    ctaLabel: "Notify me",
+    successLabel: "You're on the list!",
+    badgeLabel: "Coming soon",
+    features: [
+      {
+        tag: "monitoring",
+        title: "Continuous Monitoring",
+        body: "Your site could become vulnerable tomorrow. Get alerted the moment a new threat appears — before attackers find it.",
+      },
+      {
+        tag: "fix-service",
+        title: "Fix It For Me",
+        body: "Don't have a security engineer? Don't want to deal with this? We'll fix all your vulnerabilities for you. One click, done.",
+      },
+      {
+        tag: "cicd",
+        title: "CI/CD Integration",
+        body: "Scan your app before every deploy. Block vulnerable code from ever reaching production.",
+      },
+      {
+        tag: "ai-scan",
+        title: "AI Code Security Scanner",
+        body: "Built with AI? Paste your code and detect vulnerabilities instantly. Developers using this ship safer code.",
+      },
+      {
+        tag: "score-tracking",
+        title: "Security Score Tracking",
+        body: "Track your security posture over time. See if your fixes actually work — or if things are getting worse.",
+      },
+      {
+        tag: "advanced-reports",
+        title: "Advanced Reports",
+        body: "Investor-ready security reports. Beautiful PDFs for board decks, due diligence, and compliance audits.",
+      },
+    ],
   },
 };
 
@@ -843,6 +1087,183 @@ const CS: Dict = {
           "Přidejte rate limiting (na IP + na účet). Uzamkněte účty po N neúspěších. Přidejte CAPTCHA při anomálii.",
       },
     },
+    checks: {
+      "http-no-redirect": {
+        category: "Zabezpečení přenosu",
+        title: "HTTP nepřesměrovává na HTTPS",
+        summary: "Požadavky přes HTTP se zpracovávají bez přesměrování na zabezpečené spojení.",
+        impact: "Veškerý provoz lze odposlechnout — ukradené relace, pozměněné stránky, zachycené přihlašovací údaje.",
+        fix: "Nakonfigurujte server nebo CDN na 301 přesměrování veškerého HTTP provozu na HTTPS.",
+      },
+      "cert-invalid": {
+        category: "Zabezpečení přenosu",
+        title: "TLS certifikát je neplatný nebo nedůvěryhodný",
+        summary: "Certifikát je self-signed, prošlý, nebo jinak nedůvěryhodný.",
+        impact: "Prohlížeče zobrazí bezpečnostní varování; uživatelé odejdou nebo útočníci mohou provést MITM.",
+        fix: "Získejte platný certifikát od důvěryhodné CA (např. Let's Encrypt). Zajistěte pokrytí vašeho hostname.",
+      },
+      "cert-expiring": {
+        category: "Zabezpečení přenosu",
+        title: "TLS certifikát brzy vyprší",
+        summary: "Váš certifikát vyprší do 30 dnů.",
+        impact: "Pokud vyprší, web přestane fungovat nebo zobrazí bezpečnostní varování.",
+        fix: "Obnovte certifikát hned. Nastavte automatické obnovování přes vaši CA nebo hosting.",
+      },
+      "no-hsts": {
+        category: "Bezpečnostní hlavičky",
+        title: "Chybí Strict-Transport-Security (HSTS)",
+        summary: "Bez HSTS prohlížeče stále akceptují downgrade na HTTP při první návštěvě.",
+        impact: "MITM útoky při první návštěvě mohou strhnout HTTPS dříve, než prohlížeč uvidí certifikát.",
+        fix: "Přidejte Strict-Transport-Security: max-age=31536000; includeSubDomains; preload.",
+      },
+      "hsts-short": {
+        category: "Bezpečnostní hlavičky",
+        title: "HSTS max-age je příliš krátký",
+        summary: "Hlavička HSTS má max-age kratší než 6 měsíců.",
+        impact: "Prohlížeče HSTS politiku rychle zapomenou, čímž vzniká okno pro downgrade útoky.",
+        fix: "Nastavte max-age alespoň na 31536000 (1 rok).",
+      },
+      "no-csp": {
+        category: "Bezpečnostní hlavičky",
+        title: "Chybí Content-Security-Policy",
+        summary: "Žádná CSP hlavička — vaše největší obrana proti XSS je vypnutá.",
+        impact: "Jakákoli XSS chyba se stává branou k převzetí účtu. Ukradené relace, uniklé tokeny.",
+        fix: "Přidejte Content-Security-Policy: default-src 'self'; a zpřísňujte podle potřeby.",
+      },
+      "no-x-frame-options": {
+        category: "Bezpečnostní hlavičky",
+        title: "Chybí X-Frame-Options / frame-ancestors",
+        summary: "Vaše stránky lze vložit do iframe na libovolném webu — clickjacking je možný.",
+        impact: "Útočníci mohou přimět přihlášené uživatele kliknout na skryté prvky.",
+        fix: "Vracejte X-Frame-Options: DENY nebo přidejte frame-ancestors 'none' do CSP.",
+      },
+      "no-x-content-type-options": {
+        category: "Bezpečnostní hlavičky",
+        title: "Chybí X-Content-Type-Options",
+        summary: "Bez nosniff prohlížeče mohou MIME-sniffovat odpovědi a spustit neočekávaný obsah.",
+        impact: "Soubor nahraný jako text může být interpretován jako JavaScript.",
+        fix: "Přidejte X-Content-Type-Options: nosniff ke všem odpovědím.",
+      },
+      "no-referrer-policy": {
+        category: "Bezpečnostní hlavičky",
+        title: "Chybí Referrer-Policy",
+        summary: "Plné referrer URL mohou prozradit citlivé cesty a tokeny třetím stranám.",
+        impact: "URL s session tokeny nebo interními cestami se posílají v Referer hlavičce externím webům.",
+        fix: "Přidejte Referrer-Policy: strict-origin-when-cross-origin (nebo přísnější).",
+      },
+      "no-permissions-policy": {
+        category: "Bezpečnostní hlavičky",
+        title: "Chybí Permissions-Policy",
+        summary: "Funkce prohlížeče jako kamera, mikrofon a geolokace nejsou explicitně omezeny.",
+        impact: "Injektované skripty mohou přistupovat k silným API prohlížeče.",
+        fix: "Přidejte Permissions-Policy: camera=(), microphone=(), geolocation=() atd.",
+      },
+      "server-banner": {
+        category: "Konfigurace serveru",
+        title: "Banner serveru prozrazuje verzi",
+        summary: "Hlavička Server inzeruje přesné verze softwaru.",
+        impact: "Útočníci vědí přesně, jaké exploity vyzkoušet.",
+        fix: "Odstraňte nebo zobecněte hlavičku Server na reverzní proxy nebo CDN.",
+      },
+      "x-powered-by": {
+        category: "Konfigurace serveru",
+        title: "Hlavička X-Powered-By je odhalena",
+        summary: "Odpověď obsahuje X-Powered-By prozrazující váš framework.",
+        impact: "Dává útočníkům zkratku k identifikaci známých zranitelností.",
+        fix: "Odstraňte hlavičku X-Powered-By. Většina frameworků má jednoduchý konfigurační přepínač.",
+      },
+      "cookies-insecure": {
+        category: "Zabezpečení cookies",
+        title: "Cookies bez bezpečnostních příznaků",
+        summary: "Jeden nebo více cookies postrádá příznak Secure, HttpOnly nebo SameSite.",
+        impact: "Umožňuje krádež cookies přes XSS a CSRF přes navigaci napříč weby.",
+        fix: "Nastavte Secure; HttpOnly; SameSite=Lax (nebo Strict) na všechny autentizační cookies.",
+      },
+      "cors-wildcard": {
+        category: "CORS politika",
+        title: "Příliš volná konfigurace CORS",
+        summary: "Vaše API odráží libovolný origin nebo používá Access-Control-Allow-Origin: *.",
+        impact: "Škodlivé weby mohou jménem vašich uživatelů posílat autentizované požadavky.",
+        fix: "Zamkněte CORS na explicitní allowlist. Nikdy nekombinujte wildcard s credentials.",
+      },
+      "env-exposed": {
+        category: "Odhalené soubory",
+        title: "Odhalený .env soubor na veřejné cestě",
+        summary: "Cesta /.env vrací odpověď 200 — tajemství mohou být veřejně čitelná.",
+        impact: "API klíče, přihlašovací údaje k DB, Stripe tajemství — vše v .env je teď veřejné.",
+        fix: "Zablokujte přístup k dotfiles na web serveru. IHNED rotujte všechna odhalená tajemství.",
+      },
+      "git-exposed": {
+        category: "Odhalené soubory",
+        title: "Odhalený .git adresář",
+        summary: "Cesta /.git/HEAD je přístupná — celá historie zdrojového kódu může být ke stažení.",
+        impact: "Útočníci mohou rekonstruovat celý codebase a najít tajemství v historii commitů.",
+        fix: "Zablokujte přístup k /.git/ na web serveru. Zkontrolujte historii gitu na uniklá tajemství.",
+      },
+      "ds-store-exposed": {
+        category: "Odhalené soubory",
+        title: "Odhalený .DS_Store soubor",
+        summary: "macOS .DS_Store soubor je přístupný, prozrazuje strukturu adresářů.",
+        impact: "Odhaluje interní názvy souborů a složek a pomáhá útočníkům zmapovat web.",
+        fix: "Zablokujte přístup k dotfiles na web serveru. Přidejte .DS_Store do .gitignore.",
+      },
+      "admin-exposed": {
+        category: "Odhalené soubory",
+        title: "Admin panel veřejně přístupný",
+        summary: "Admin nebo přihlašovací stránka je dosažitelná bez IP omezení.",
+        impact: "Automatizovaní boti je bruteforcují 24/7. Slabé heslo = plné převzetí.",
+        fix: "Schovejte admin za SSO, IP allowlist nebo VPN. Vynuťte MFA a rate-limiting.",
+      },
+      "debug-exposed": {
+        category: "Odhalené soubory",
+        title: "Debug nebo status endpoint odhalen",
+        summary: "Debug, phpinfo nebo server-status stránka je veřejně přístupná.",
+        impact: "Odhaluje interní konfiguraci, PHP nastavení, interní údaje serveru.",
+        fix: "Odstraňte nebo omezte přístup k debug endpointům v produkci.",
+      },
+      "no-spf": {
+        category: "DNS zabezpečení",
+        title: "Žádný SPF záznam",
+        summary: "Nebyl nalezen SPF TXT záznam — kdokoli může posílat e-maily za vaši doménu.",
+        impact: "Phishingové e-maily z vaší domény projdou základními kontrolami a poškodí vaši reputaci.",
+        fix: "Přidejte TXT záznam: v=spf1 include:_spf.vasprovider.com -all",
+      },
+      "no-dmarc": {
+        category: "DNS zabezpečení",
+        title: "Žádný DMARC záznam",
+        summary: "Na _dmarc.vasedomena nebyla nalezena DMARC politika — autentizace e-mailu je neúplná.",
+        impact: "Bez DMARC nemáte přehled o tom, kdo zneužívá vaši doménu.",
+        fix: "Přidejte TXT záznam na _dmarc.vasedomena: v=DMARC1; p=quarantine; rua=mailto:dmarc@vasedomena",
+      },
+      "mixed-content": {
+        category: "Zabezpečení obsahu",
+        title: "Smíšený obsah: HTTP zdroje na HTTPS stránce",
+        summary: "Vaše HTTPS stránka načítá zdroje přes plain HTTP.",
+        impact: "Tyto zdroje mohou být pozměněny při přenosu a potenciálně vložit skripty.",
+        fix: "Změňte všechny URL zdrojů na HTTPS. Použijte CSP upgrade-insecure-requests.",
+      },
+      "outdated-library": {
+        category: "Zabezpečení obsahu",
+        title: "Detekována zastaralá JavaScript knihovna",
+        summary: "Byla nalezena verze JavaScript knihovny se známými zranitelnostmi.",
+        impact: "Pro tuto verzi existují veřejné exploity — XSS, prototype pollution nebo horší.",
+        fix: "Upgradujte na nejnovější verzi. Pusťte npm audit v CI, abyste zachytili budoucí regrese.",
+      },
+    },
+    metaLabels: {
+      ip: "IP adresa",
+      server: "Server",
+      tls: "TLS protokol",
+      cert: "Certifikát",
+      certExpires: "Certifikát vyprší",
+      certDaysLeft: "Zbývá dní",
+      responseTime: "Doba odezvy",
+      statusCode: "Stavový kód",
+      technologies: "Technologie",
+      redirectChain: "Přesměrování",
+      scanDuration: "Doba skenu",
+      downloadPdf: "Stáhnout PDF",
+    },
   },
   paywall: {
     kicker: "Odemknout",
@@ -866,6 +1287,48 @@ const CS: Dict = {
     ctaLoading: "Přesměrovávám…",
     fineprint: "Bezpečná platba · Okamžitý přístup · 7 dní na vrácení peněz",
     close: "Zavřít",
+  },
+  comingSoon: {
+    kicker: "Již brzy",
+    title: "Teprve začínáme.",
+    subtitle:
+      "Na těchto funkcích se právě pracuje. Nechte nám e-mail a budete první, kdo se dozví, až je spustíme.",
+    emailPlaceholder: "vy@firma.cz",
+    ctaLabel: "Dejte mi vědět",
+    successLabel: "Máme vás na seznamu!",
+    badgeLabel: "Již brzy",
+    features: [
+      {
+        tag: "monitoring",
+        title: "Průběžný monitoring",
+        body: "Váš web se může stát zranitelným zítra. Dostanete upozornění ve chvíli, kdy se objeví nová hrozba — dřív, než ji najdou útočníci.",
+      },
+      {
+        tag: "fix-service",
+        title: "Opravíme to za vás",
+        body: "Nemáte bezpečnostního inženýra? Nechcete se tím zabývat? Všechny zranitelnosti opravíme za vás. Jedno kliknutí, hotovo.",
+      },
+      {
+        tag: "cicd",
+        title: "CI/CD integrace",
+        body: "Skenujte aplikaci před každým deployem. Zablokujte zranitelný kód dřív, než se dostane do produkce.",
+      },
+      {
+        tag: "ai-scan",
+        title: "AI skener kódu",
+        body: "Postaveno s AI? Vložte svůj kód a okamžitě odhalte zranitelnosti. Vývojáři, kteří tohle používají, šíří bezpečnější kód.",
+      },
+      {
+        tag: "score-tracking",
+        title: "Sledování bezpečnostního skóre",
+        body: "Sledujte svůj bezpečnostní stav v čase. Zjistěte, jestli vaše opravy fungují — nebo jestli se to zhoršuje.",
+      },
+      {
+        tag: "advanced-reports",
+        title: "Pokročilé reporty",
+        body: "Bezpečnostní reporty připravené pro investory. Krásná PDF pro board decky, due diligence a compliance audity.",
+      },
+    ],
   },
 };
 

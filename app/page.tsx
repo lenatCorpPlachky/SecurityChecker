@@ -3,6 +3,7 @@
 import Link from "next/link";
 import ScanForm from "@/components/ScanForm";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import ComingSoonSection from "@/components/ComingSoonSection";
 import { useT } from "@/lib/i18n";
 
 export default function LandingPage() {
@@ -165,6 +166,9 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+
+      {/* ===== COMING SOON ===== */}
+      <ComingSoonSection variant="landing" />
 
       {/* ===== FAQ ===== */}
       <section id="faq" className="bg-[#08080F] border-t border-white/5">
