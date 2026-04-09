@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error("STRIPE_SECRET_KEY is not set");
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+}
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -26,6 +31,7 @@ export async function POST(req: Request) {
     : process.env.STRIPE_PRODUCT_ONEOFF!;
 
   try {
+    const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
       mode: isProPlan ? "subscription" : "payment",
       line_items: [
