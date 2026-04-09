@@ -1,11 +1,5 @@
 // Main scan orchestrator. Runs all checks in parallel, aggregates findings,
 // calculates score, builds meta info.
-//
-// We disable TLS verification for outbound requests because:
-// 1. We're a security scanner — we need to inspect sites with expired/self-signed certs
-// 2. We check cert validity via TLS module separately and report it as a finding
-// 3. This runs server-side only, not in user's browser
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 import type { Finding, ScanMeta, ScanResult, Severity } from "./types";
 import { ENGINE_VERSION } from "./types";
@@ -41,6 +35,25 @@ function safeFetch(
 }
 
 export async function runScan(rawUrl: string): Promise<ScanResult> {
+  // Disable TLS verification for scanning only:
+  // 1. We need to inspect sites with expired/self-signed certs
+  // 2. We check cert validity via TLS module separately and report it as a finding
+  const prevTls = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+  try {
+    return await _runScan(rawUrl);
+  } finally {
+    // Restore so other API routes (e.g. Stripe) use proper TLS verification
+    if (prevTls === undefined) {
+      delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+    } else {
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED = prevTls;
+    }
+  }
+}
+
+async function _runScan(rawUrl: string): Promise<ScanResult> {
   const start = Date.now();
   const u = new URL(rawUrl);
   const hostname = u.hostname.toLowerCase();

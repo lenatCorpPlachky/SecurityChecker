@@ -1,12 +1,22 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+let _stripe: Stripe | null = null;
+
 function getStripe() {
   if (!process.env.STRIPE_SECRET_KEY) {
     throw new Error("STRIPE_SECRET_KEY is not set");
   }
-  return new Stripe(process.env.STRIPE_SECRET_KEY);
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      maxNetworkRetries: 1,
+      timeout: 8000,
+    });
+  }
+  return _stripe;
 }
+
+export const maxDuration = 15;
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -16,7 +26,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing url" }, { status: 400 });
   }
 
-  const origin = req.headers.get("origin") || "http://localhost:3000";
+  const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/+$/, "") || "http://localhost:3000";
   const isLandingPurchase = !url.startsWith("http");
   const successUrl = isLandingPurchase
     ? `${origin}/?purchased=${encodeURIComponent(plan || "oneoff")}`
@@ -52,6 +62,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
+    console.error("Stripe checkout error:", err);
     const message = err instanceof Error ? err.message : "Checkout failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
