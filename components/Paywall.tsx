@@ -18,9 +18,10 @@ export default function Paywall({ url, onClose }: { url: string; onClose: () => 
       });
       const data = await res.json();
       if (data.url) {
-        window.location.href = data.url;
+        window.location.assign(data.url);
       }
-    } finally {
+    } catch (err) {
+      console.error("Checkout error:", err);
       setLoading(false);
     }
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import ScanForm from "@/components/ScanForm";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
@@ -162,6 +163,7 @@ export default function LandingPage() {
               highlight={i === 1}
               popularLabel={t.pricing.popular}
               href="#scan"
+              stripePlan={i === 1 ? "oneoff" : i === 2 ? "pro" : undefined}
             />
           ))}
         </div>
@@ -293,11 +295,32 @@ function AudienceCard({
 }
 
 function PricingCard({
-  name, price, tag, features, cta, href, highlight, popularLabel,
+  name, price, tag, features, cta, href, highlight, popularLabel, stripePlan,
 }: {
   name: string; price: string; tag: string; features: string[]; cta: string;
-  href: string; highlight?: boolean; popularLabel: string;
+  href: string; highlight?: boolean; popularLabel: string; stripePlan?: "oneoff" | "pro";
 }) {
+  const [loading, setLoading] = useState(false);
+
+  async function handleClick(e: React.MouseEvent) {
+    if (!stripePlan) return; // Free plan — follow href normally
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: "landing-page-purchase", plan: stripePlan }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.assign(data.url);
+      }
+    } catch {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className={`rounded-3xl p-8 border ${highlight ? "border-brand bg-gradient-to-b from-brand/15 to-transparent scale-[1.02]" : "border-white/10 bg-white/[0.02]"}`}>
       <div className="flex items-baseline justify-between">
@@ -322,11 +345,12 @@ function PricingCard({
       </ul>
       <a
         href={href}
+        onClick={handleClick}
         className={`mt-8 block text-center rounded-full py-3 font-semibold transition ${
           highlight ? "bg-white text-ink hover:bg-white/90" : "bg-white/10 text-white hover:bg-white/15"
-        }`}
+        } ${loading ? "opacity-60 pointer-events-none" : ""}`}
       >
-        {cta}
+        {loading ? "..." : cta}
       </a>
     </div>
   );
