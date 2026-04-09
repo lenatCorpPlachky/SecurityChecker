@@ -1,20 +1,4 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
-
-let _stripe: Stripe | null = null;
-
-function getStripe() {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error("STRIPE_SECRET_KEY is not set");
-  }
-  if (!_stripe) {
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      maxNetworkRetries: 1,
-      timeout: 8000,
-    });
-  }
-  return _stripe;
-}
 
 export const maxDuration = 15;
 
@@ -26,7 +10,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing url" }, { status: 400 });
   }
 
-  const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/+$/, "") || "http://localhost:3000";
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    return NextResponse.json({ error: "STRIPE_SECRET_KEY is not set" }, { status: 500 });
+  }
+
+  const origin =
+    req.headers.get("origin") ||
+    req.headers.get("referer")?.replace(/\/+$/, "") ||
+    "http://localhost:3000";
+
   const isLandingPurchase = !url.startsWith("http");
   const successUrl = isLandingPurchase
     ? `${origin}/?purchased=${encodeURIComponent(plan || "oneoff")}`
@@ -40,29 +33,43 @@ export async function POST(req: Request) {
     ? process.env.STRIPE_PRODUCT_PRO!
     : process.env.STRIPE_PRODUCT_ONEOFF!;
 
+  const params = new URLSearchParams();
+  params.append("mode", isProPlan ? "subscription" : "payment");
+  params.append("line_items[0][price_data][currency]", "usd");
+  params.append("line_items[0][price_data][product]", product);
+  params.append("line_items[0][price_data][unit_amount]", isProPlan ? "2900" : "900");
+  if (isProPlan) {
+    params.append("line_items[0][price_data][recurring][interval]", "month");
+  }
+  params.append("line_items[0][quantity]", "1");
+  params.append("success_url", successUrl);
+  params.append("cancel_url", cancelUrl);
+  params.append("metadata[scanned_url]", url);
+  params.append("metadata[plan]", plan || "oneoff");
+
   try {
-    const stripe = getStripe();
-    const session = await stripe.checkout.sessions.create({
-      mode: isProPlan ? "subscription" : "payment",
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product,
-            unit_amount: isProPlan ? 2900 : 900,
-            ...(isProPlan ? { recurring: { interval: "month" as const } } : {}),
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      metadata: { scanned_url: url, plan: plan || "oneoff" },
+    const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
     });
 
-    return NextResponse.json({ url: session.url });
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error("Stripe API error:", data);
+      return NextResponse.json(
+        { error: data?.error?.message || "Stripe error" },
+        { status: res.status },
+      );
+    }
+
+    return NextResponse.json({ url: data.url });
   } catch (err) {
-    console.error("Stripe checkout error:", err);
+    console.error("Stripe fetch error:", err);
     const message = err instanceof Error ? err.message : "Checkout failed";
     return NextResponse.json({ error: message }, { status: 500 });
   }
