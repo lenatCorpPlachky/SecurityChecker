@@ -74,6 +74,7 @@ export type Dict = {
     kicker: string;
     scannedAtLabel: string;
     share: string;
+    shareCopied: string;
     scanning: { steps: string[] };
     score: {
       outOf: string;
@@ -314,6 +315,7 @@ const EN: Dict = {
     kicker: "Security report",
     scannedAtLabel: "Scanned",
     share: "Share report ↗",
+    shareCopied: "Copied!",
     scanning: {
       steps: [
         "Resolving DNS…",
@@ -941,6 +943,7 @@ const CS: Dict = {
     kicker: "Bezpečnostní report",
     scannedAtLabel: "Skenováno",
     share: "Sdílet report ↗",
+    shareCopied: "Zkopírováno!",
     scanning: {
       steps: [
         "Překládám DNS…",

@@ -113,7 +113,28 @@ export default function ResultsView() {
   const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<"scanning" | "done">("scanning");
+  const [copied, setCopied] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    // Try native share (mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `VulnCheck — ${result?.hostname || ""}`, url: shareUrl });
+        return;
+      } catch {}
+    }
+    // Fallback: clipboard
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Last resort: prompt with URL
+      window.prompt("Copy this link:", shareUrl);
+    }
+  };
 
   useEffect(() => {
     if (!url) {
@@ -205,10 +226,10 @@ export default function ResultsView() {
           </div>
         </div>
         <button
-          onClick={() => navigator.clipboard?.writeText(window.location.href)}
+          onClick={handleShare}
           className="self-start md:self-end rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-sm px-4 py-2 no-print"
         >
-          {t.scan.share}
+          {copied ? t.scan.shareCopied : t.scan.share}
         </button>
       </div>
 

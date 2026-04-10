@@ -1,349 +1,291 @@
 # VulnCheck
 
-> How secure is your website — really?
+> How secure is your website — really? | Jak bezpečný je váš web — doopravdy?
 
-A SaaS application for automated website security audits. Built for founders who don't speak CVE and developers who ship AI-generated code.
+---
 
-**Engine version:** `2.0.0` (real passive scanner)
+## English
 
-## Stack
+A SaaS app for automated website security audits. Built for founders who don't speak CVE and developers who ship AI-generated code.
 
-- Next.js 14 (App Router) + TypeScript
-- TailwindCSS
-- Node.js API routes (tls, dns modules)
-- Real passive security scanner (23 checks)
-- Stripe Checkout (test mode) — one-off $9 + Pro $29/mo
-- "Coming Soon" feature cards with waitlist email capture
-- Payment persistence via localStorage (MVP)
-- Mock scan engine available via `?mode=mock`
+**Engine version:** `2.0.0`
+
+### Stack
+
+- Next.js 14 (App Router) + TypeScript + TailwindCSS
+- Real passive scanner — 23 security checks (OWASP Top 10)
+- Stripe Checkout (test mode) — one-off $9 / Pro $29/mo
+- Payment persistence via localStorage (MVP before Supabase)
+- Scan history with score tracking over time
+- Full report for paid users (passed + failed checks)
+- Share report (native share on mobile, clipboard fallback)
+- Coming Soon feature cards with waitlist email capture
+- PDF export via browser print
 - EN/CS localization with auto-detection
-- PDF export via `@media print`
+- Mock engine available via `?mode=mock`
 
-## Run locally
+### Run locally
 
 ```bash
 npm install
 npm run dev
-# http://localhost:3000
 ```
 
-## Project structure
+### Project structure
 
 ```
 app/
-  page.tsx                Landing page (hero, pricing, coming soon, FAQ, thank-you modal)
-  scan/page.tsx           Results page (score ring, findings, meta panel, paywall)
-  globals.css             Dark theme + print/PDF styles
-  api/scan/route.ts       Scan API — real engine (default) or mock (?mode=mock)
-  api/checkout/route.ts   Stripe Checkout (direct API, no SDK)
-  api/waitlist/route.ts   Waitlist email capture (POST)
+  page.tsx                Landing (hero, pricing, coming soon, FAQ, thank-you modal)
+  scan/page.tsx           Results (score, findings, passed checks, history, paywall)
+  globals.css             Dark theme + print styles
+  api/scan/route.ts       Scan API — real engine or mock (?mode=mock)
+  api/checkout/route.ts   Stripe Checkout (direct REST API, no SDK)
+  api/waitlist/route.ts   Waitlist email capture
 components/
   ScanForm.tsx            URL input on landing
-  ResultsView.tsx         Score ring, findings list, meta panel, PDF export
-  ComingSoonSection.tsx   "Coming soon" feature cards + waitlist email inputs
+  ResultsView.tsx         Score ring, findings, passed checks, scan history, PDF
+  ComingSoonSection.tsx   Coming Soon cards + waitlist emails
   Paywall.tsx             Upsell modal (one-off / pro)
   LanguageSwitcher.tsx    EN/CS toggle
 lib/
-  i18n.tsx                Localization dictionaries (EN + CS)
-  scanEngine.ts           Deterministic mock scan engine (v1.0)
+  i18n.tsx                Full EN + CS dictionaries
+  scanEngine.ts           Mock engine (v1.0)
   scanner/
-    types.ts              Shared types + ENGINE_VERSION constant
-    checks.ts             All passive security check functions
-    index.ts              Scan orchestrator (parallel execution, scoring)
+    types.ts              Types + ENGINE_VERSION
+    checks.ts             All 23 passive check functions
+    index.ts              Scan orchestrator
 ```
+
+### Scan Engine v2.0
+
+23 passive security checks. Non-invasive — no payloads, no exploitation. Only inspects publicly visible HTTP responses, headers, TLS, DNS, and common paths.
+
+**How it works:**
+1. Parallel info gathering — HTTPS fetch, DNS resolve, TLS inspect, redirect check
+2. Parallel checks — all 23 run concurrently
+3. Aggregation — deduplicate, sort by severity, calculate score/grade
+4. Meta extraction — technologies, TLS/cert details, response time
+
+#### Checks
+
+| # | Check ID | Severity | Category |
+|---|---|---|---|
+| 1 | `cert-invalid` | Critical | Transport Security |
+| 2 | `cert-expiring` | Medium | Transport Security |
+| 3 | `http-no-redirect` | High | Transport Security |
+| 4 | `no-hsts` | Medium | Security Headers |
+| 5 | `hsts-short` | Low | Security Headers |
+| 6 | `no-csp` | High | Security Headers |
+| 7 | `no-x-frame-options` | Medium | Security Headers |
+| 8 | `no-x-content-type-options` | Medium | Security Headers |
+| 9 | `no-referrer-policy` | Low | Security Headers |
+| 10 | `no-permissions-policy` | Low | Security Headers |
+| 11 | `server-banner` | Low | Server Config |
+| 12 | `x-powered-by` | Low | Server Config |
+| 13 | `cookies-insecure` | Medium | Cookie Security |
+| 14 | `cors-wildcard` | Medium/High | CORS |
+| 15 | `env-exposed` | Critical | Exposed Files |
+| 16 | `git-exposed` | Critical | Exposed Files |
+| 17 | `ds-store-exposed` | Low | Exposed Files |
+| 18 | `admin-exposed` | High | Exposed Files |
+| 19 | `debug-exposed` | High/Medium | Exposed Files |
+| 20 | `no-spf` | Medium | DNS Security |
+| 21 | `no-dmarc` | Medium | DNS Security |
+| 22 | `mixed-content` | Medium | Content Security |
+| 23 | `outdated-library` | High | Content Security |
+
+#### Scoring
+
+```
+Base: 100.  Critical -15, High -10, Medium -5, Low -2, Info 0.
+Grade: A+ (>=95)  A (>=85)  B (>=70)  C (>=55)  D (>=40)  F (<40)
+```
+
+### Features
+
+#### Full Report (paid users)
+Paid users see **all checks** — both failed (red) and passed (green). The passed checks section shows every security control that is correctly configured, so the client sees the complete picture of what they're paying for.
+
+#### Scan History
+Every scan is saved to localStorage. The results page shows:
+- **Same-host timeline** — score changes over time with delta arrows (improvement tracking)
+- **Other scanned sites** — clickable links to previous scans
+- Up to 50 entries stored
+
+#### Share Report
+Native share on mobile, clipboard copy on desktop with "Copied!" feedback, prompt fallback as last resort.
+
+#### Stripe Payments
+- Direct REST API calls (no SDK — SDK has issues on Vercel serverless)
+- Test card: `4242 4242 4242 4242`
+- After payment: redirect back with `?unlocked=1`, stored in localStorage as `vc_paid`
+
+#### Post-Purchase UX
+- Green success banner on results page
+- Thank-you modal on landing page with plan name and CTA
+- All subsequent scans auto-unlock
+
+#### Coming Soon (UI only)
+6 feature cards with waitlist email capture: Continuous Monitoring, Fix It For Me, CI/CD Integration, AI Code Scanner, Score Tracking, Advanced Reports.
+
+### API
+
+```
+GET  /api/scan?url=https://example.com            → real scan
+GET  /api/scan?url=https://example.com&mode=mock   → mock scan
+POST /api/checkout  { url, plan }                  → Stripe session
+POST /api/waitlist  { email, feature }             → email capture
+```
+
+### Roadmap: Supabase Auth + Database
+
+- [ ] Supabase project + magic link login
+- [ ] `payments` table + Stripe webhook
+- [ ] `scans` table (replace localStorage history)
+- [ ] `waitlist` table (replace in-memory store)
+- [ ] User dashboard (`/dashboard`) with scan history + plan status
+- [ ] Remove localStorage fallback
 
 ---
 
-## Scan Engine v2.0
+## Česky
 
-The real scan engine (`lib/scanner/`) performs **23 passive security checks** against a target URL. All checks are non-invasive — no payloads, no exploitation, no authentication bypass attempts. The engine only inspects publicly visible HTTP responses, headers, TLS handshakes, DNS records, and common paths.
+SaaS aplikace pro automatizované bezpečnostní audity webů. Postaveno pro zakladatele, kteří nemluví jazykem CVE, a pro vývojáře, kteří nasazují kód generovaný AI.
 
-### How it works
+**Verze enginu:** `2.0.0`
 
-1. **Phase 1 — Parallel info gathering:** Fetches the HTTPS page, resolves IP via DNS, inspects TLS certificate via `tls.connect()`, and checks HTTP-to-HTTPS redirect behavior — all in parallel.
-2. **Phase 2 — Parallel checks:** Runs all 23 checks concurrently against the gathered data.
-3. **Aggregation:** Deduplicates findings by `checkId`, sorts by severity, calculates score/grade.
-4. **Meta extraction:** Fingerprints technologies, collects TLS/cert details, measures response time.
+### Stack
 
-Every scan result includes `engineVersion` so results can be compared across engine upgrades.
+- Next.js 14 (App Router) + TypeScript + TailwindCSS
+- Reálný pasivní skener — 23 bezpečnostních kontrol (OWASP Top 10)
+- Stripe Checkout (testovací režim) — jednorázově $9 / Pro $29/měs
+- Persistence plateb přes localStorage (MVP před Supabase)
+- Historie skenů se sledováním skóre v čase
+- Kompletní report pro platící uživatele (prošlé + neprošlé kontroly)
+- Sdílení reportu (nativní sdílení na mobilu, kopírování do schránky)
+- Coming Soon karty s odběrem e-mailů na waitlist
+- PDF export přes tisk prohlížeče
+- EN/CS lokalizace s automatickou detekcí
+- Mock engine dostupný přes `?mode=mock`
 
-### Check categories
+### Spuštění lokálně
 
-#### 1. Transport Security (HTTPS / TLS)
+```bash
+npm install
+npm run dev
+```
 
-| Check ID | Severity | OWASP | What it detects |
+### Struktura projektu
+
+```
+app/
+  page.tsx                Landing (hero, ceník, coming soon, FAQ, děkovací modal)
+  scan/page.tsx           Výsledky (skóre, nálezy, prošlé kontroly, historie, paywall)
+  globals.css             Tmavý motiv + tiskové styly
+  api/scan/route.ts       Scan API — reálný engine nebo mock (?mode=mock)
+  api/checkout/route.ts   Stripe Checkout (přímé REST API, bez SDK)
+  api/waitlist/route.ts   Odběr e-mailů na waitlist
+components/
+  ScanForm.tsx            Vstup URL na landingu
+  ResultsView.tsx         Skóre, nálezy, prošlé kontroly, historie skenů, PDF
+  ComingSoonSection.tsx   Coming Soon karty + waitlist e-maily
+  Paywall.tsx             Upsell modal (jednorázově / pro)
+  LanguageSwitcher.tsx    Přepínač EN/CS
+lib/
+  i18n.tsx                Kompletní EN + CS slovníky
+  scanEngine.ts           Mock engine (v1.0)
+  scanner/
+    types.ts              Typy + ENGINE_VERSION
+    checks.ts             Všech 23 funkcí pasivních kontrol
+    index.ts              Orchestrátor skenů
+```
+
+### Scan Engine v2.0
+
+23 pasivních bezpečnostních kontrol. Neinvazivní — žádné payloady, žádná exploitace. Kontroluje pouze veřejně viditelné HTTP odpovědi, hlavičky, TLS, DNS a běžné cesty.
+
+**Jak to funguje:**
+1. Paralelní sběr informací — HTTPS fetch, DNS resolve, TLS inspekce, kontrola přesměrování
+2. Paralelní kontroly — všech 23 běží souběžně
+3. Agregace — deduplikace, řazení dle závažnosti, výpočet skóre/známky
+4. Extrakce metadat — technologie, TLS/certifikát, doba odezvy
+
+#### Kontroly
+
+| # | ID kontroly | Závažnost | Kategorie |
 |---|---|---|---|
-| `cert-invalid` | Critical | A02:2021 | TLS certificate is not trusted (self-signed, expired, wrong host) |
-| `cert-expiring` | Medium | A02:2021 | Certificate expires within 30 days |
-| `http-no-redirect` | High | A02:2021 | HTTP does not redirect to HTTPS, or serves content directly |
+| 1 | `cert-invalid` | Kritická | Zabezpečení přenosu |
+| 2 | `cert-expiring` | Střední | Zabezpečení přenosu |
+| 3 | `http-no-redirect` | Vysoká | Zabezpečení přenosu |
+| 4 | `no-hsts` | Střední | Bezpečnostní hlavičky |
+| 5 | `hsts-short` | Nízká | Bezpečnostní hlavičky |
+| 6 | `no-csp` | Vysoká | Bezpečnostní hlavičky |
+| 7 | `no-x-frame-options` | Střední | Bezpečnostní hlavičky |
+| 8 | `no-x-content-type-options` | Střední | Bezpečnostní hlavičky |
+| 9 | `no-referrer-policy` | Nízká | Bezpečnostní hlavičky |
+| 10 | `no-permissions-policy` | Nízká | Bezpečnostní hlavičky |
+| 11 | `server-banner` | Nízká | Konfigurace serveru |
+| 12 | `x-powered-by` | Nízká | Konfigurace serveru |
+| 13 | `cookies-insecure` | Střední | Bezpečnost cookies |
+| 14 | `cors-wildcard` | Střední/Vysoká | CORS |
+| 15 | `env-exposed` | Kritická | Odhalené soubory |
+| 16 | `git-exposed` | Kritická | Odhalené soubory |
+| 17 | `ds-store-exposed` | Nízká | Odhalené soubory |
+| 18 | `admin-exposed` | Vysoká | Odhalené soubory |
+| 19 | `debug-exposed` | Vysoká/Střední | Odhalené soubory |
+| 20 | `no-spf` | Střední | DNS bezpečnost |
+| 21 | `no-dmarc` | Střední | DNS bezpečnost |
+| 22 | `mixed-content` | Střední | Bezpečnost obsahu |
+| 23 | `outdated-library` | Vysoká | Bezpečnost obsahu |
 
-#### 2. Security Headers
-
-| Check ID | Severity | OWASP | What it detects |
-|---|---|---|---|
-| `no-hsts` | Medium | A02:2021 | Missing `Strict-Transport-Security` header |
-| `hsts-short` | Low | A02:2021 | HSTS `max-age` less than 6 months (15768000s) |
-| `no-csp` | High | A05:2021 | Missing `Content-Security-Policy` header |
-| `no-x-frame-options` | Medium | A05:2021 | Missing `X-Frame-Options` and no `frame-ancestors` in CSP |
-| `no-x-content-type-options` | Medium | A05:2021 | Missing `X-Content-Type-Options: nosniff` |
-| `no-referrer-policy` | Low | A05:2021 | Missing `Referrer-Policy` header |
-| `no-permissions-policy` | Low | A05:2021 | Missing `Permissions-Policy` (or `Feature-Policy`) header |
-
-#### 3. Server Information Leakage
-
-| Check ID | Severity | OWASP | What it detects |
-|---|---|---|---|
-| `server-banner` | Low | A05:2021 | `Server` header reveals version number |
-| `x-powered-by` | Low | A05:2021 | `X-Powered-By` header present (leaks framework info) |
-
-#### 4. Cookie Security
-
-| Check ID | Severity | OWASP | What it detects |
-|---|---|---|---|
-| `cookies-insecure` | Medium | A07:2021 | Cookies missing `Secure`, `HttpOnly`, or `SameSite` flags |
-
-#### 5. CORS Misconfiguration
-
-| Check ID | Severity | OWASP | What it detects |
-|---|---|---|---|
-| `cors-wildcard` | Medium/High | A01:2021 | `Access-Control-Allow-Origin: *` or reflects attacker origin. Elevated to High if `Allow-Credentials: true` |
-
-#### 6. Exposed Sensitive Paths
-
-| Check ID | Severity | OWASP | Paths probed |
-|---|---|---|---|
-| `env-exposed` | Critical | A05:2021 | `/.env` |
-| `git-exposed` | Critical | A05:2021 | `/.git/HEAD` |
-| `ds-store-exposed` | Low | A05:2021 | `/.DS_Store` |
-| `admin-exposed` | High | A01:2021 | `/admin`, `/wp-admin/`, `/wp-login.php` |
-| `debug-exposed` | High/Medium | A05:2021 | `/phpinfo.php`, `/server-status`, `/debug` |
-
-Also checks `/.well-known/security.txt` (positive signal, not a finding).
-
-#### 7. DNS Security
-
-| Check ID | Severity | OWASP | What it detects |
-|---|---|---|---|
-| `no-spf` | Medium | A07:2021 | No SPF (`v=spf1`) TXT record |
-| `no-dmarc` | Medium | A07:2021 | No DMARC record at `_dmarc.{hostname}` |
-
-#### 8. Content Analysis
-
-| Check ID | Severity | OWASP | What it detects |
-|---|---|---|---|
-| `mixed-content` | Medium | A02:2021 | HTTP resources loaded on HTTPS page (`src=`, `href=`, `action=` pointing to `http://`) |
-| `outdated-library` | High | A06:2021 | Known outdated JS libraries: jQuery < 3.5, Bootstrap < 5.0, AngularJS < 1.8 |
-
-### Technology Fingerprinting
-
-The engine also identifies technologies from:
-- `Server` and `X-Powered-By` response headers
-- Cookie names (`PHPSESSID` → PHP, `JSESSIONID` → Java, `__cfduid` → Cloudflare, etc.)
-- HTML patterns (`wp-content` → WordPress, `__next` → Next.js, `data-reactroot` → React, etc.)
-- `<meta name="generator">` tag
-
-### Scoring
+#### Bodování
 
 ```
-Base score: 100
-
-Deductions per finding:
-  Critical  -15
-  High      -10
-  Medium     -5
-  Low        -2
-  Info        0
-
-Final score = clamp(0, 100)
-
-Grade:  A+ (>=95)  A (>=85)  B (>=70)  C (>=55)  D (>=40)  F (<40)
-Tone:   safe (>=75)  warn (>=50)  danger (<50)
+Základ: 100.  Kritická -15, Vysoká -10, Střední -5, Nízká -2, Info 0.
+Známka: A+ (>=95)  A (>=85)  B (>=70)  C (>=55)  D (>=40)  F (<40)
 ```
 
-### Scan Meta (included in every result)
+### Funkce
 
-- Resolved IP address
-- Server software and framework (`Server`, `X-Powered-By`)
-- TLS protocol and cipher suite
-- Certificate issuer, subject, expiry, days remaining
-- HTTP redirect chain
-- Response time (ms)
-- HTTP status code
-- Detected technologies
+#### Kompletní report (platící uživatelé)
+Platící uživatelé vidí **všechny kontroly** — neprošlé (červené) i prošlé (zelené). Sekce prošlých kontrol ukazuje každý správně nakonfigurovaný bezpečnostní prvek, takže klient vidí kompletní obraz toho, za co platí.
 
----
+#### Historie skenů
+Každý sken se ukládá do localStorage. Stránka výsledků zobrazuje:
+- **Časová osa stejného hostu** — změny skóre v čase s šipkami delta (sledování zlepšení)
+- **Ostatní skenované weby** — klikatelné odkazy na předchozí skeny
+- Až 50 uložených záznamů
 
-## Mock Engine v1.0
+#### Sdílení reportu
+Nativní sdílení na mobilu, kopírování do schránky na desktopu s potvrzením „Zkopírováno!", prompt jako poslední záchrana.
 
-The original mock engine (`lib/scanEngine.ts`) is still available via `?mode=mock`. It hashes the hostname with FNV-1a and seeds a Mulberry32 PRNG to deterministically pick 4-9 findings from a pool of 13 OWASP-flavored issues. Same URL always produces the same score — useful for demos and testing the UI without hitting real targets.
+#### Platby přes Stripe
+- Přímá REST API volání (bez SDK — SDK má problémy na Vercel serverless)
+- Testovací karta: `4242 4242 4242 4242`
+- Po platbě: přesměrování zpět s `?unlocked=1`, uloženo v localStorage jako `vc_paid`
 
-## API
+#### UX po nákupu
+- Zelený banner úspěchu na stránce výsledků
+- Děkovací modal na landing page s názvem plánu a CTA
+- Všechny následující skeny se automaticky odemknou
 
-```
-GET  /api/scan?url=https://example.com          → real scan (engine v2.0)
-GET  /api/scan?url=https://example.com&mode=mock → mock scan (engine v1.0)
-POST /api/checkout                               → Stripe Checkout session
-POST /api/waitlist                               → email capture for coming soon features
-```
+#### Coming Soon (pouze UI)
+6 karet s odběrem e-mailů na waitlist: Průběžný monitoring, Opravíme to za vás, CI/CD integrace, AI skener kódu, Sledování skóre, Pokročilé reporty.
 
-### Scan API
-
-Response includes `engineVersion` and `mode` fields to identify which engine produced the result.
-
-### Checkout API
-
-Uses direct `fetch` to Stripe API (not the SDK — SDK has connection issues on Vercel serverless). Creates a Checkout Session for one-off ($9) or subscription ($29/mo).
+### API
 
 ```
-POST /api/checkout
-Content-Type: application/json
-
-{ "url": "https://example.com", "plan": "oneoff" }   → one-time $9
-{ "url": "https://example.com", "plan": "pro" }      → recurring $29/mo
-{ "url": "landing-page-purchase", "plan": "oneoff" }  → from pricing card (no scan URL)
+GET  /api/scan?url=https://example.com            → reálný sken
+GET  /api/scan?url=https://example.com&mode=mock   → mock sken
+POST /api/checkout  { url, plan }                  → Stripe session
+POST /api/waitlist  { email, feature }             → odběr e-mailu
 ```
 
-Returns `{ url: "https://checkout.stripe.com/..." }` — client redirects there.
+### Plán: Supabase Auth + Databáze
 
-### Waitlist API
-
-```
-POST /api/waitlist
-Content-Type: application/json
-
-{ "email": "user@company.com", "feature": "monitoring" }
-```
-
-Valid feature tags: `monitoring`, `fix-service`, `cicd`, `ai-scan`, `score-tracking`, `advanced-reports`
-
-Returns `{ ok: true }`. In-memory storage for MVP.
-
----
-
-## Payments
-
-### Stripe Integration
-
-- Direct Stripe REST API calls from `/api/checkout` (no SDK)
-- Test mode: use card `4242 4242 4242 4242`, any expiry, any CVC
-- Products configured via env vars: `STRIPE_PRODUCT_ONEOFF`, `STRIPE_PRODUCT_PRO`
-- After payment, Stripe redirects back with `?unlocked=1` (results) or `?purchased=plan` (landing)
-
-### Payment Persistence (current: localStorage MVP)
-
-After Stripe payment, `vc_paid` is stored in localStorage:
-```json
-{ "plan": "oneoff", "ts": 1712678400000 }
-```
-All subsequent scans auto-unlock the full report without paywall.
-
-**Limitations:**
-- Lost if user clears browser data
-- Doesn't work across devices/browsers
-- No scan history
-- No account management
-
-These limitations will be resolved by the Supabase migration (see roadmap below).
-
-## Free vs Paid
-
-- **Free:** score + top 3 findings + benchmark percentile
-- **Paid ($9):** full finding list + business impact + fix instructions + PDF export
-- **Pro ($29/mo):** unlimited scans + monitoring + CI/CD hooks (planned)
-
-## Localization
-
-Full EN and CS translations for all 23 check IDs (title, summary, impact, fix instructions) plus all UI strings. Language auto-detected from browser, switchable via toggle.
-
----
-
-## Coming Soon Features (UI-only, not functional)
-
-Six features visible in the UI as "Coming Soon" cards with waitlist email capture. Shown on both the landing page (between Pricing and FAQ) and results page (after findings).
-
-| Feature | Tag | Description |
-|---|---|---|
-| Continuous Monitoring | `monitoring` | Get alerted when your site becomes vulnerable |
-| Fix It For Me | `fix-service` | We fix all your vulnerabilities for you |
-| CI/CD Integration | `cicd` | Scan your app before every deploy |
-| AI Code Scanner | `ai-scan` | Paste code and detect vulnerabilities instantly |
-| Score Tracking | `score-tracking` | Track security posture over time |
-| Advanced Reports | `advanced-reports` | Investor-ready PDFs for board decks and compliance |
-
-Each card has: emoji icon, localized "Coming soon" badge, emotional copy, email input + "Notify me" CTA. Hidden from PDF export.
-
----
-
-## Post-Purchase Experience
-
-- **Results page:** Green success banner "Payment successful! Your full report is unlocked."
-- **Landing page:** Thank-you modal with checkmark, plan name, CTA to scan first site, receipt note
-- All subsequent scans auto-unlock via localStorage persistence
-
----
-
-## Roadmap: Supabase Auth + Database
-
-The current MVP uses localStorage for payment persistence, which is fragile. The next major milestone is migrating to Supabase for proper user accounts, payment tracking, and scan history.
-
-### TODO: Authentication
-
-- [ ] Set up Supabase project (free tier)
-- [ ] Install `@supabase/supabase-js` and `@supabase/auth-helpers-nextjs`
-- [ ] Create Supabase client (`lib/supabase.ts`) with env vars `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- [ ] Implement magic link email login (passwordless — lowest friction for SaaS)
-- [ ] Create `/login` page with email input, "Send magic link" CTA
-- [ ] Add auth middleware to protect paid features
-- [ ] Add user avatar/email in nav bar when logged in
-- [ ] Add logout button
-- [ ] Store session in Supabase Auth (replaces localStorage `vc_paid`)
-
-### TODO: Database Schema
-
-- [ ] `users` table (managed by Supabase Auth)
-- [ ] `payments` table: `id`, `user_id`, `stripe_session_id`, `plan` (oneoff/pro), `amount`, `status`, `created_at`
-- [ ] `scans` table: `id`, `user_id`, `url`, `hostname`, `score`, `grade`, `findings_json`, `meta_json`, `engine_version`, `created_at`
-- [ ] `waitlist` table: `id`, `email`, `feature`, `created_at` (replace in-memory store)
-- [ ] Row Level Security (RLS) policies: users can only read their own scans/payments
-
-### TODO: Stripe Webhook
-
-- [ ] Create `POST /api/webhook` route for Stripe webhook events
-- [ ] Handle `checkout.session.completed` → insert into `payments` table
-- [ ] Handle `customer.subscription.deleted` → deactivate Pro plan
-- [ ] Verify webhook signature with `STRIPE_WEBHOOK_SECRET`
-- [ ] Remove localStorage payment persistence — use DB as source of truth
-
-### TODO: User Dashboard
-
-- [ ] Create `/dashboard` page (protected, requires login)
-- [ ] Show list of past scans with score, grade, date, hostname
-- [ ] Click a scan to view full results (load from `scans` table)
-- [ ] Show current plan status (Free / One-off / Pro) from `payments` table
-- [ ] Show payment history
-- [ ] "Scan new site" CTA button
-- [ ] For Pro users: show scan count this month, next billing date
-
-### TODO: Scan History Storage
-
-- [ ] After each scan completes, save full result to `scans` table (linked to user)
-- [ ] Limit free users to 1 scan/day (check `scans` table count)
-- [ ] Pro users: unlimited scans
-- [ ] One-off users: unlimited scans for the purchased URL only, or all URLs (decide)
-
-### TODO: Waitlist Migration
-
-- [ ] Create `waitlist` table in Supabase
-- [ ] Update `POST /api/waitlist` to insert into DB instead of in-memory array
-- [ ] Add admin view or Supabase dashboard query to export waitlist emails by feature
-
-### Suggested Implementation Order
-
-1. Supabase project setup + env vars
-2. Auth (magic link login + `/login` page + nav bar)
-3. Database schema + RLS policies
-4. Stripe webhook → `payments` table
-5. Save scan results → `scans` table
-6. User dashboard (`/dashboard`)
-7. Waitlist migration to DB
-8. Remove localStorage fallback
+- [ ] Supabase projekt + magic link přihlášení
+- [ ] Tabulka `payments` + Stripe webhook
+- [ ] Tabulka `scans` (nahradí localStorage historii)
+- [ ] Tabulka `waitlist` (nahradí in-memory úložiště)
+- [ ] Uživatelský dashboard (`/dashboard`) s historií skenů + stav plánu
+- [ ] Odstranění localStorage fallbacku
