@@ -3,12 +3,56 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { ScanResult, Finding, Severity, ScanMeta } from "@/lib/scanner/types";
+import type { ScanResult, Finding, Severity, ScanMeta, PassedCheck } from "@/lib/scanner/types";
 import { format, useT, type Dict } from "@/lib/i18n";
 import Paywall from "./Paywall";
 import LanguageSwitcher from "./LanguageSwitcher";
 
 type AnyFinding = Finding & { key?: number; checkId?: string };
+
+// ── Scan History helpers ──────────────────────────────────────────────
+
+interface HistoryEntry {
+  url: string;
+  hostname: string;
+  scannedAt: string;
+  score: number;
+  grade: string;
+  tone: string;
+  findingsCount: number;
+  passedCount: number;
+}
+
+const HISTORY_KEY = "vc_scan_history";
+const MAX_HISTORY = 50;
+
+function loadHistory(): HistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToHistory(result: ScanResult & { passed?: PassedCheck[] }) {
+  try {
+    const history = loadHistory();
+    const entry: HistoryEntry = {
+      url: result.url,
+      hostname: result.hostname,
+      scannedAt: result.scannedAt,
+      score: result.score,
+      grade: result.grade,
+      tone: result.tone,
+      findingsCount: result.findings?.length ?? 0,
+      passedCount: result.passed?.length ?? 0,
+    };
+    history.unshift(entry);
+    if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  } catch {}
+}
 
 const SEVERITY_STYLES: Record<Severity, { chip: string; dot: string }> = {
   critical: { chip: "bg-danger/15 text-danger border-danger/30", dot: "bg-danger" },
@@ -87,7 +131,12 @@ export default function ResultsView() {
           return;
         }
         // Small delay so animation feels real
-        setTimeout(() => !cancel && (setResult(data), setPhase("done")), 500);
+        setTimeout(() => {
+          if (cancel) return;
+          setResult(data);
+          setPhase("done");
+          saveToHistory(data);
+        }, 500);
       } catch {
         if (!cancel) setError(t.scan.error.generic);
       }
@@ -117,6 +166,7 @@ export default function ResultsView() {
   const findings: AnyFinding[] = result.findings || [];
   const visibleFindings = unlocked ? findings : findings.slice(0, 3);
   const lockedFindings = unlocked ? [] : findings.slice(3);
+  const passedChecks: PassedCheck[] = result.passed || [];
   const meta: ScanMeta | undefined = result.meta;
 
   return (
@@ -225,6 +275,32 @@ export default function ResultsView() {
           </div>
         )}
       </div>
+
+      {/* PASSED CHECKS (paid users see the full picture) */}
+      {unlocked && passedChecks.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-xl font-bold">
+            {t.scan.passedLabel}
+            <span className="ml-2 text-safe text-sm font-normal">{passedChecks.length} / {passedChecks.length + findings.length}</span>
+          </h2>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {passedChecks.map((p) => (
+              <div
+                key={p.checkId}
+                className="flex items-center gap-3 rounded-xl border border-safe/20 bg-safe/5 px-4 py-3"
+              >
+                <span className="h-5 w-5 rounded-full bg-safe/20 flex items-center justify-center text-safe text-xs font-bold shrink-0">&#10003;</span>
+                <span className="text-sm text-white/80">
+                  {t.scan.passedChecks[p.checkId] || p.checkId}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SCAN HISTORY */}
+      {unlocked && <ScanHistory currentUrl={result.url} t={t} />}
 
       {/* EMOTIONAL FOOTER */}
       <div className="mt-16 rounded-3xl border border-white/10 bg-white/[0.02] p-8 md:p-10 text-center no-print">
@@ -456,5 +532,120 @@ function FindingCard({ f, unlocked, t }: { f: AnyFinding; unlocked: boolean; t: 
         </div>
       )}
     </div>
+  );
+}
+
+// ── Scan History ──────────────────────────────────────────────────────
+
+function ScanHistory({ currentUrl, t }: { currentUrl: string; t: Dict }) {
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    setHistory(loadHistory());
+  }, []);
+
+  // Filter to same hostname so user sees improvement over time
+  const hostname = (() => {
+    try { return new URL(currentUrl).hostname; } catch { return ""; }
+  })();
+  const sameHost = history.filter((h) => h.hostname === hostname);
+  const otherHosts = history.filter((h) => h.hostname !== hostname);
+
+  if (history.length <= 1) return null; // only current scan, nothing to show
+
+  const toneColor = (tone: string) =>
+    tone === "danger" ? "text-danger" : tone === "warn" ? "text-warn" : "text-safe";
+
+  const visibleSameHost = showAll ? sameHost : sameHost.slice(0, 5);
+  const visibleOther = showAll ? otherHosts : otherHosts.slice(0, 3);
+
+  return (
+    <div className="mt-10 no-print">
+      <h2 className="text-xl font-bold">
+        Scan history
+        <span className="ml-2 text-white/40 text-sm font-normal">{history.length} scans</span>
+      </h2>
+
+      {/* Same host timeline */}
+      {sameHost.length > 1 && (
+        <div className="mt-5">
+          <div className="text-xs tracking-widest text-white/40 uppercase mb-3">{hostname}</div>
+          <div className="space-y-2">
+            {visibleSameHost.map((h, i) => (
+              <div
+                key={`${h.scannedAt}-${i}`}
+                className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
+                  i === 0 ? "border-brand/30 bg-brand/5" : "border-white/10 bg-white/[0.02]"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`text-2xl font-black ${toneColor(h.tone)}`}>{h.score}</span>
+                  <div>
+                    <div className="text-sm font-semibold">{h.grade}</div>
+                    <div className="text-[11px] text-white/40">
+                      {new Date(h.scannedAt).toLocaleDateString()} {new Date(h.scannedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right text-xs">
+                  <div className="text-white/60">{h.findingsCount} issues</div>
+                  <div className="text-safe/70">{h.passedCount} passed</div>
+                  {i > 0 && sameHost[i - 1] && (
+                    <ScoreDelta current={sameHost[i - 1].score} previous={h.score} />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Other hosts */}
+      {visibleOther.length > 0 && (
+        <div className="mt-6">
+          <div className="text-xs tracking-widest text-white/40 uppercase mb-3">Other sites</div>
+          <div className="space-y-2">
+            {visibleOther.map((h, i) => (
+              <Link
+                key={`${h.scannedAt}-${i}`}
+                href={`/scan?url=${encodeURIComponent(h.url)}`}
+                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 hover:bg-white/[0.04] transition"
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`text-lg font-black ${toneColor(h.tone)}`}>{h.score}</span>
+                  <div>
+                    <div className="text-sm font-semibold truncate max-w-[200px]">{h.hostname}</div>
+                    <div className="text-[11px] text-white/40">{new Date(h.scannedAt).toLocaleDateString()}</div>
+                  </div>
+                </div>
+                <div className="text-xs text-white/40">{h.grade}</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(sameHost.length > 5 || otherHosts.length > 3) && !showAll && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="mt-4 text-sm text-brand hover:underline"
+        >
+          Show all history
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ScoreDelta({ current, previous }: { current: number; previous: number }) {
+  const delta = current - previous;
+  if (delta === 0) return null;
+  const color = delta > 0 ? "text-safe" : "text-danger";
+  const arrow = delta > 0 ? "\u25B2" : "\u25BC";
+  return (
+    <span className={`text-[11px] ${color}`}>
+      {arrow} {Math.abs(delta)}
+    </span>
   );
 }

@@ -1,7 +1,7 @@
 // Main scan orchestrator. Runs all checks in parallel, aggregates findings,
 // calculates score, builds meta info.
 
-import type { Finding, ScanMeta, ScanResult, Severity } from "./types";
+import type { Finding, PassedCheck, ScanMeta, ScanResult, Severity } from "./types";
 import { ENGINE_VERSION } from "./types";
 import {
   checkCertificate,
@@ -144,6 +144,21 @@ async function _runScan(rawUrl: string): Promise<ScanResult> {
     id: `chk-${c.checkId}`,
   }));
 
+  // ── Passed checks (all possible checks minus findings) ──────────
+
+  const ALL_CHECK_IDS = [
+    "http-no-redirect", "cert-invalid", "cert-expiring",
+    "no-hsts", "hsts-short", "no-csp", "no-x-frame-options",
+    "no-x-content-type-options", "no-referrer-policy", "no-permissions-policy",
+    "server-banner", "x-powered-by", "cookies-insecure", "cors-wildcard",
+    "env-exposed", "git-exposed", "ds-store-exposed", "admin-exposed", "debug-exposed",
+    "no-spf", "no-dmarc", "mixed-content", "outdated-library",
+  ];
+  const failedIds = new Set(findings.map((f) => f.checkId));
+  const passed: PassedCheck[] = ALL_CHECK_IDS
+    .filter((id) => !failedIds.has(id))
+    .map((checkId) => ({ checkId }));
+
   // ── Score calculation ─────────────────────────────────────────────
 
   const deductions: Record<Severity, number> = {
@@ -219,6 +234,7 @@ async function _runScan(rawUrl: string): Promise<ScanResult> {
     tone,
     percentile,
     findings,
+    passed,
     counts,
     meta,
     mode: "real",

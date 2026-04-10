@@ -30,6 +30,10 @@ export interface ScanMeta {
   technologies: string[];
 }
 
+export interface PassedCheck {
+  checkId: string;
+}
+
 export interface ScanResult {
   url: string;
   hostname: string;
@@ -40,6 +44,7 @@ export interface ScanResult {
   tone: "safe" | "warn" | "danger";
   percentile: number;
   findings: Finding[];
+  passed: PassedCheck[];
   counts: Record<Severity, number>;
   meta: ScanMeta;
   mode: "real" | "mock";

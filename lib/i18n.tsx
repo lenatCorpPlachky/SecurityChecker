@@ -121,6 +121,8 @@ export type Dict = {
       scanDuration: string;
       downloadPdf: string;
     };
+    passedLabel: string;
+    passedChecks: Record<string, string>;
   };
   paywall: {
     kicker: string;
@@ -680,6 +682,32 @@ const EN: Dict = {
       redirectChain: "Redirects",
       scanDuration: "Scan duration",
       downloadPdf: "Download PDF",
+    },
+    passedLabel: "Passed checks",
+    passedChecks: {
+      "http-no-redirect": "HTTPS redirect configured correctly",
+      "cert-invalid": "Valid and trusted TLS certificate",
+      "cert-expiring": "Certificate not expiring soon",
+      "no-hsts": "Strict-Transport-Security (HSTS) present",
+      "hsts-short": "HSTS max-age is sufficient",
+      "no-csp": "Content-Security-Policy header present",
+      "no-x-frame-options": "X-Frame-Options / frame-ancestors set",
+      "no-x-content-type-options": "X-Content-Type-Options: nosniff set",
+      "no-referrer-policy": "Referrer-Policy header present",
+      "no-permissions-policy": "Permissions-Policy header present",
+      "server-banner": "Server version not exposed",
+      "x-powered-by": "X-Powered-By header not present",
+      "cookies-insecure": "Cookies have proper security flags",
+      "cors-wildcard": "CORS properly configured",
+      "env-exposed": ".env file not publicly accessible",
+      "git-exposed": ".git directory not exposed",
+      "ds-store-exposed": ".DS_Store file not exposed",
+      "admin-exposed": "Admin panel not publicly accessible",
+      "debug-exposed": "Debug endpoints not exposed",
+      "no-spf": "SPF record configured",
+      "no-dmarc": "DMARC record configured",
+      "mixed-content": "No mixed content detected",
+      "outdated-library": "No outdated libraries detected",
     },
   },
   paywall: {
@@ -1283,6 +1311,32 @@ const CS: Dict = {
       redirectChain: "Přesměrování",
       scanDuration: "Doba skenu",
       downloadPdf: "Stáhnout PDF",
+    },
+    passedLabel: "Prošlo kontrolou",
+    passedChecks: {
+      "http-no-redirect": "HTTPS přesměrování správně nakonfigurováno",
+      "cert-invalid": "Platný a důvěryhodný TLS certifikát",
+      "cert-expiring": "Certifikát nevyprší v blízké době",
+      "no-hsts": "Hlavička Strict-Transport-Security (HSTS) přítomna",
+      "hsts-short": "HSTS max-age je dostatečný",
+      "no-csp": "Hlavička Content-Security-Policy přítomna",
+      "no-x-frame-options": "X-Frame-Options / frame-ancestors nastaveno",
+      "no-x-content-type-options": "X-Content-Type-Options: nosniff nastaveno",
+      "no-referrer-policy": "Hlavička Referrer-Policy přítomna",
+      "no-permissions-policy": "Hlavička Permissions-Policy přítomna",
+      "server-banner": "Verze serveru není odhalena",
+      "x-powered-by": "Hlavička X-Powered-By není přítomna",
+      "cookies-insecure": "Cookies mají správné bezpečnostní flagy",
+      "cors-wildcard": "CORS správně nakonfigurován",
+      "env-exposed": "Soubor .env není veřejně dostupný",
+      "git-exposed": "Adresář .git není odhalen",
+      "ds-store-exposed": "Soubor .DS_Store není odhalen",
+      "admin-exposed": "Admin panel není veřejně dostupný",
+      "debug-exposed": "Debug endpointy nejsou odhaleny",
+      "no-spf": "SPF záznam nakonfigurován",
+      "no-dmarc": "DMARC záznam nakonfigurován",
+      "mixed-content": "Žádný mixed content detekován",
+      "outdated-library": "Žádné zastaralé knihovny detekovány",
     },
   },
   paywall: {
