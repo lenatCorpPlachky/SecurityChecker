@@ -146,9 +146,32 @@ POST /api/waitlist  { email, feature }             → email capture
 - [ ] User dashboard (`/dashboard`) with scan history + plan status
 - [ ] Remove localStorage fallback
 
----
+### Roadmap: Engine v3.0 — New Checks
 
-## Česky
+Current: 23 checks. Target: 35+ checks.
+
+#### Tier 1 — Quick wins (high impact, minimal effort)
+
+- [ ] `tls-version-old` — Flag TLS 1.0/1.1 (data already available from `checkCertificate`, just add one `if`)
+- [ ] `csp-unsafe-inline` — CSP exists but contains `unsafe-inline` or `unsafe-eval` (almost as bad as no CSP)
+- [ ] `no-sri` — External `<script>` / `<link>` without `integrity` attribute (regex on HTML body)
+- [ ] `open-redirect` — URL params reflected into `Location` header (fetch with `?redirect=https://evil.com`)
+- [ ] `directory-listing` — Exposed directory indexes at `/css/`, `/images/` etc. (check for `Index of` in response)
+
+#### Tier 2 — High impact, moderate effort
+
+- [ ] `robots-secrets` — `robots.txt` `Disallow:` lines reveal sensitive paths (`/admin`, `/api/internal`, `/backup`)
+- [ ] `no-caa` — No CAA DNS record (prevents unauthorized CAs from issuing certs)
+- [ ] `form-http-action` — Login/form `action` posts to HTTP (credential theft)
+- [ ] `weak-cipher` — Weak cipher suites: RC4, DES, 3DES (data already available from `getCipher()`)
+- [ ] `wordpress-version` — Exact WordPress version exposed via `<meta generator>` or `/wp-login.php` (maps to CVEs)
+
+#### Tier 3 — Differentiators
+
+- [ ] `subdomain-takeover` — CNAME pointing to defunct service (GitHub Pages, Heroku, S3, etc.)
+- [ ] `email-spoofing-risk` — Combined SPF+DMARC severity escalation (both missing = critical, `~all` = weak)
+- [ ] `source-map-exposed` — `.js.map` files accessible (exposes entire source code)
+- [ ] `api-docs-exposed` — Swagger/OpenAPI docs public (`/swagger.json`, `/api-docs`, `/openapi.yaml`)
 
 SaaS aplikace pro automatizované bezpečnostní audity webů. Postaveno pro zakladatele, kteří nemluví jazykem CVE, a pro vývojáře, kteří nasazují kód generovaný AI.
 
@@ -289,3 +312,30 @@ POST /api/waitlist  { email, feature }             → odběr e-mailu
 - [ ] Tabulka `waitlist` (nahradí in-memory úložiště)
 - [ ] Uživatelský dashboard (`/dashboard`) s historií skenů + stav plánu
 - [ ] Odstranění localStorage fallbacku
+
+### Plán: Engine v3.0 — Nové kontroly
+
+Aktuálně: 23 kontrol. Cíl: 35+ kontrol.
+
+#### Tier 1 — Rychlé výhry (vysoký dopad, minimální úsilí)
+
+- [ ] `tls-version-old` — Označit TLS 1.0/1.1 (data už máme z `checkCertificate`, stačí přidat jeden `if`)
+- [ ] `csp-unsafe-inline` — CSP existuje, ale obsahuje `unsafe-inline` nebo `unsafe-eval` (skoro tak špatné jako žádné CSP)
+- [ ] `no-sri` — Externí `<script>` / `<link>` bez atributu `integrity` (regex na HTML body)
+- [ ] `open-redirect` — URL parametry se odrážejí do `Location` hlavičky (fetch s `?redirect=https://evil.com`)
+- [ ] `directory-listing` — Odhalené výpisy adresářů na `/css/`, `/images/` atd. (kontrola `Index of` v odpovědi)
+
+#### Tier 2 — Vysoký dopad, střední úsilí
+
+- [ ] `robots-secrets` — `robots.txt` řádky `Disallow:` odhalují citlivé cesty (`/admin`, `/api/internal`, `/backup`)
+- [ ] `no-caa` — Chybí CAA DNS záznam (brání neautorizovaným CA vydávat certifikáty)
+- [ ] `form-http-action` — Formulář/login odesílá na HTTP (krádež přihlašovacích údajů)
+- [ ] `weak-cipher` — Slabé šifrovací sady: RC4, DES, 3DES (data už máme z `getCipher()`)
+- [ ] `wordpress-version` — Přesná verze WordPressu odhalena přes `<meta generator>` nebo `/wp-login.php` (mapuje se na CVE)
+
+#### Tier 3 — Odlišovače
+
+- [ ] `subdomain-takeover` — CNAME ukazuje na zrušenou službu (GitHub Pages, Heroku, S3 atd.)
+- [ ] `email-spoofing-risk` — Kombinovaná eskalace závažnosti SPF+DMARC (obě chybí = kritická, `~all` = slabé)
+- [ ] `source-map-exposed` — Přístupné `.js.map` soubory (odhalují celý zdrojový kód)
+- [ ] `api-docs-exposed` — Veřejné Swagger/OpenAPI docs (`/swagger.json`, `/api-docs`, `/openapi.yaml`)
