@@ -7,7 +7,6 @@ import type { ScanResult, Finding, Severity, ScanMeta } from "@/lib/scanner/type
 import { format, useT, type Dict } from "@/lib/i18n";
 import Paywall from "./Paywall";
 import LanguageSwitcher from "./LanguageSwitcher";
-import ComingSoonSection from "./ComingSoonSection";
 
 type AnyFinding = Finding & { key?: number; checkId?: string };
 
@@ -46,7 +45,25 @@ export default function ResultsView() {
   const router = useRouter();
   const { t } = useT();
   const url = params.get("url") || "";
-  const unlocked = params.get("unlocked") === "1";
+  const unlockedParam = params.get("unlocked") === "1";
+
+  // Persist payment state: Stripe redirects back with ?unlocked=1, we store it
+  const [isPaid, setIsPaid] = useState(false);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("vc_paid");
+      if (stored) setIsPaid(true);
+      if (unlockedParam) {
+        localStorage.setItem("vc_paid", JSON.stringify({
+          plan: params.get("plan") || "oneoff",
+          ts: Date.now(),
+        }));
+        setIsPaid(true);
+      }
+    } catch {}
+  }, [unlockedParam, params]);
+
+  const unlocked = unlockedParam || isPaid;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [result, setResult] = useState<any | null>(null);
@@ -116,6 +133,14 @@ export default function ResultsView() {
           </button>
         </div>
       </div>
+
+      {/* SUCCESS BANNER */}
+      {unlocked && (
+        <div className="mt-4 rounded-2xl border border-safe/30 bg-safe/10 px-5 py-4 flex items-center gap-3 no-print">
+          <span className="text-safe text-xl">&#10003;</span>
+          <span className="text-sm font-semibold">{t.purchase.successBanner}</span>
+        </div>
+      )}
 
       {/* HEADER */}
       <div className="mt-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
@@ -214,9 +239,6 @@ export default function ResultsView() {
           </button>
         )}
       </div>
-
-      {/* WHAT'S NEXT — Coming soon features */}
-      <ComingSoonSection variant="results" />
 
       {showPaywall && <Paywall url={url} onClose={() => setShowPaywall(false)} />}
     </div>

@@ -9,26 +9,40 @@ Format follows [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 
 ---
 
+## [2.2.0] — 2026-04-10
+
+### Feature: Stripe Checkout + Payment Persistence + Post-Purchase UX
+
+#### Added
+- **Real Stripe Checkout** (test mode) — direct REST API calls, no SDK
+  - One-off report: $9 one-time payment
+  - Pro plan: $29/mo recurring subscription
+  - Pricing cards on landing page trigger Stripe directly
+  - Paywall modal on results page triggers Stripe
+- **Payment persistence** via localStorage (`vc_paid`)
+  - Stored after Stripe redirect (both landing and results page)
+  - All subsequent scans auto-unlock without paywall
+- **Post-purchase UX**
+  - Results page: green success banner when report unlocked
+  - Landing page: thank-you modal with plan info, CTA to scan, receipt note
+- **Full EN + CS translations** for all purchase-related copy
+
+#### Changed
+- Checkout API uses direct `fetch` to `https://api.stripe.com` (SDK had connection issues on Vercel serverless)
+- Scanner TLS override scoped to `runScan()` only (was global, broke Stripe connections)
+- Landing page wrapped in `Suspense` for `useSearchParams` support
+
+---
+
 ## [2.1.0] — 2026-04-09
 
 ### Feature: "Coming Soon" Cards + Waitlist Email Capture
 
 #### Added
-- **6 "Coming Soon" feature cards** visible on both landing page and results page
-  - Continuous Monitoring, Fix It For Me, CI/CD Integration, AI Code Scanner, Score Tracking, Advanced Reports
-  - Each card has emoji icon, localized badge, emotional copy, email input form
+- **6 "Coming Soon" feature cards** on landing page and results page
 - **`POST /api/waitlist`** endpoint for email capture
-  - Accepts `{ email, feature }` with validation
-  - Deduplicates by email + feature pair
-  - In-memory storage (MVP)
-  - Valid feature tags: `monitoring`, `fix-service`, `cicd`, `ai-scan`, `score-tracking`, `advanced-reports`
-- **`ComingSoonSection` component** with `variant` prop for landing vs results styling
-- **Full EN + CS translations** for all Coming Soon copy (`comingSoon` block in i18n)
-- Cards hidden from PDF export via `no-print` class
-
-#### Changed
-- Landing page: Coming Soon section inserted between Pricing and FAQ
-- Results page: Coming Soon section inserted after emotional footer, before paywall
+- **`ComingSoonSection` component** with email forms
+- **Full EN + CS translations** for all Coming Soon copy
 
 ---
 

@@ -146,6 +146,16 @@ export type Dict = {
     badgeLabel: string;
     features: { tag: string; title: string; body: string }[];
   };
+  purchase: {
+    successBanner: string;
+    thankTitle: string;
+    thankSubtitle: string;
+    thankBody: string;
+    thankCta: string;
+    planOneoff: string;
+    planPro: string;
+    receiptNote: string;
+  };
 };
 
 const EN: Dict = {
@@ -736,6 +746,16 @@ const EN: Dict = {
         body: "Investor-ready security reports. Beautiful PDFs for board decks, due diligence, and compliance audits.",
       },
     ],
+  },
+  purchase: {
+    successBanner: "Payment successful! Your full report is unlocked.",
+    thankTitle: "Thank you for your purchase!",
+    thankSubtitle: "You're one step ahead of the attackers.",
+    thankBody: "Your plan is now active. Scan any website to get the full security report with detailed fix instructions, OWASP explanations, and exportable PDF.",
+    thankCta: "Scan your first site",
+    planOneoff: "One-off Report",
+    planPro: "Pro Plan",
+    receiptNote: "A receipt has been sent to your email by Stripe.",
   },
 };
 
@@ -1329,6 +1349,16 @@ const CS: Dict = {
         body: "Bezpečnostní reporty připravené pro investory. Krásná PDF pro board decky, due diligence a compliance audity.",
       },
     ],
+  },
+  purchase: {
+    successBanner: "Platba proběhla úspěšně! Váš kompletní report je odemčen.",
+    thankTitle: "Děkujeme za nákup!",
+    thankSubtitle: "Jste o krok napřed před útočníky.",
+    thankBody: "Váš plán je nyní aktivní. Naskenujte jakýkoliv web a získejte kompletní bezpečnostní report s podrobnými instrukcemi k opravě, OWASP vysvětleními a exportovatelným PDF.",
+    thankCta: "Naskenovat první web",
+    planOneoff: "Jednorázový report",
+    planPro: "Pro plán",
+    receiptNote: "Potvrzení o platbě vám bylo zasláno e-mailem od Stripe.",
   },
 };
 

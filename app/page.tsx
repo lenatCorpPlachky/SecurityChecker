@@ -1,17 +1,77 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import ScanForm from "@/components/ScanForm";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ComingSoonSection from "@/components/ComingSoonSection";
 import { useT } from "@/lib/i18n";
 
 export default function LandingPage() {
+  return (
+    <Suspense>
+      <LandingPageInner />
+    </Suspense>
+  );
+}
+
+function LandingPageInner() {
   const { t } = useT();
+  const params = useSearchParams();
+  const purchased = params.get("purchased");
+  const [showThankYou, setShowThankYou] = useState(false);
+
+  useEffect(() => {
+    if (purchased) {
+      setShowThankYou(true);
+      try {
+        localStorage.setItem("vc_paid", JSON.stringify({
+          plan: purchased,
+          ts: Date.now(),
+        }));
+      } catch {}
+    }
+  }, [purchased]);
 
   return (
     <main className="relative overflow-hidden">
+      {/* THANK YOU MODAL */}
+      {showThankYou && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setShowThankYou(false)}
+        >
+          <div
+            className="relative w-full max-w-md rounded-3xl border border-safe/20 bg-[#0c0c12] p-8 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowThankYou(false)}
+              className="absolute top-4 right-4 text-white/40 hover:text-white text-xl"
+            >
+              &times;
+            </button>
+            <div className="mx-auto w-16 h-16 rounded-full bg-safe/10 border border-safe/30 flex items-center justify-center text-3xl mb-5">
+              &#10003;
+            </div>
+            <div className="text-xs uppercase tracking-widest text-safe font-bold">
+              {purchased === "pro" ? t.purchase.planPro : t.purchase.planOneoff}
+            </div>
+            <h2 className="mt-2 text-2xl font-black">{t.purchase.thankTitle}</h2>
+            <p className="mt-1 text-white/70 font-semibold">{t.purchase.thankSubtitle}</p>
+            <p className="mt-3 text-sm text-white/50 leading-relaxed">{t.purchase.thankBody}</p>
+            <a
+              href="#scan"
+              onClick={() => setShowThankYou(false)}
+              className="mt-6 inline-block rounded-full bg-white text-ink font-bold px-8 py-3 hover:bg-white/90 transition"
+            >
+              {t.purchase.thankCta}
+            </a>
+            <div className="mt-4 text-[11px] text-white/40">{t.purchase.receiptNote}</div>
+          </div>
+        </div>
+      )}
       {/* ===== NAV ===== */}
       <nav className="relative z-20 flex items-center justify-between px-6 py-5 md:px-12">
         <div className="flex items-center gap-2">
